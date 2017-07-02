@@ -1,23 +1,20 @@
-var request = require('superagent');
-var express = require('express');
-var cheerio = require("cheerio");
-var EventProxy = require('eventproxy');
-var async = require("async");
-var fs = require("fs");
+// var request = require('superagent');
+const axios = require('axios')
+const express = require('express');
+const cheerio = require("cheerio");
+// const async = require("async");
+const fs = require("fs");
+const qs = require('qs')
 
-var app = express();
-var ep = new EventProxy();
+const app = express();
 
-require('superagent-proxy')(request);
-var proxy = 'http://0.0.0.0:8080';//设置代理
-var url = 'https://accounts.pixiv.net/login'
-var formData = {
-  'pixiv_id':'',//用户名
-  'password':'',//密码
-  'captcha':'',
-  'g_recaptcha_response':'',
-  'source':'pc'
-  }
+//设置代理
+//axios.defaults.proxy ={
+//   host: '127.0.0.1',
+//   port: 1080
+// }
+const url = 'https://www.pixiv.net/ranking_area.php?type=detail&no=6'//抓取的链接
+
 var headers = {
   "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
   "Accept": "application/json, text/javascript, */*; q=0.01",
@@ -30,38 +27,85 @@ var time = 30000;//超时时间
 var limit = 20;//并发连接数
 
 //get postKey and cookie
-function getK_C(){
-  request
-    .get(url)
-    .proxy(proxy)
-    .query('lang=zh&source=pc&view_type=page&ref=wwwtop_accounts_index')
-    .set(headers)
-    .end(function (err, res) {
-      var postKey = res.text.match(/postKey":"([^"]*)"/)[1];
-      var cookie = res.header['set-cookie'].join(',').match(/(PHPSESSID=.+?;)/)[1]
-      // console.log('cookie:'+cookie)
-      // console.log('key:'+postKey)
-      login(postKey,cookie)
+(async () => {
+  let loginCookie = fs.existsSync(`cookie.txt`) ? fs.readFileSync(`cookie.txt`) : ''
+  const headers_2 = Object.assign({},headers,{Cookie:loginCookie.toString()})
+  console.log(headers_2);
+  const fetchUrl = axios.create({
+    method: 'get',
+    headers:headers_2,
   });
+  const getHomePage = await fetchUrl('https://www.pixiv.net/').then(res => {
+    const $ = cheerio.load(res.data)
+    const username = $('.user-name-container a').text()
+    if (username==='') {
+      console.log('未登录')
+      // getLoginCookie()
+    }else{console.log('已登录')}
+  })
+  const get_ranking_area = await fetchUrl(url)
+  let $ = cheerio.load(get_ranking_area.data)
+  const title = $('.column-title .self').text()
+  const _about = $('._unit ._about').text()
+  const list = new Map()
+  $('.ranking-item .work._work').each((i,el) => list.set(i,$(el).attr('href')))
+  const folderPath = `${__dirname}/${title}${_about}`
+  if(fs.existsSync(folderPath)){
+    console.error("目录已经存在")
+  }else{
+    fs.mkdirSync(folderPath)
+    console.log(`目录创建成功`)
+  }
+  // for(let [key, value] of list){
+  //   fetchUrl(`https://www.pixiv.net${value}`).then(res => {
+  //     let $ = cheerio.load(res.data)
+  //     const illust_img = $('._illust_modal .original-image').data('src')
+  //   })
+  // }
+  // download(fetchUrl,'https://i.pximg.net/img-original/img/2017/06/26/00/01/02/63567947_p0.jpg',folderPath,0)
+
+})()
+
+const getLoginCookie = async () => {
+  const getData = await axios.get('https://accounts.pixiv.net/login')
+  const postKey = await getData.data.match(/postKey":"([^"]*)"/)[1]
+  const cookie = await getData.headers['set-cookie'].join(',').match(/(PHPSESSID=.+?;)/)[1]
+  const formData = {
+    'pixiv_id':'zhb',//用户名
+    'password':'50904090',//密码
+    'captcha':'',
+    'g_recaptcha_response':'',
+    'source':'pc',
+    'post_key':postKey
+  }
+  const headers_1 = Object.assign({},headers,{Cookie:cookie})
+  const login = await axios.post('https://accounts.pixiv.net/api/login',qs.stringify(formData),{headers:headers_1})
+  console.log('获取登录cookie')
+  const loginCookie = await login.headers['set-cookie'].join(',').match(/(PHPSESSID=.+?;)/)[1]
+  if (fs.existsSync(`cookie.txt`)) {
+    fs.unlinkSync('cookie.txt')
+  }
+  fs.writeFileSync('cookie.txt',loginCookie)
 }
 
-//login
-function login(postKey,cookie){
-  request
-  .post('https://accounts.pixiv.net/api/login')
-  .proxy(proxy)
-  .query('lang=zh&source=pc&view_type=page&ref=wwwtop_accounts_index')
-  .set(headers)
-  .set('Cookie', cookie)
-  .type("form")
-  .send(formData)
-  .send({'post_key':postKey})
-  .end(function(err, res){
-    var newCookie = res.header['set-cookie'].join(',').match(/(PHPSESSID=.+?;)/)[1]
-    get_ranking_area (newCookie)
-  });
+const download = async (fetchUrl,imgUrl,folderPath,i) => {
+  const filePath = `${folderPath}/${i}.jpg`
+  const fileName = `${i}.jpg`
+  if(fs.existsSync(filePath)){
+    console.log(`${fileName}已存在`)
+    return
+  }else if(imgUrl === undefined){
+    console.log(`${fileName}没有获取到链接`)
+    return
+  }else{
+    console.log(`抓取${fileName}链接中`)
+    const readStream = await fetchUrl(imgUrl,{responseType:'stream'})
+    readStream.data.pipe(fs.createWriteStream(filePath)).on('close',() => {
+      console.log(`${fileName}下载完成！`)
+    })
+  }
 }
-
+/*
 function get_ranking_area (newCookie){
   request
   .get('http://www.pixiv.net/ranking_area.php?type=detail&no=6')//国际排行榜
@@ -100,8 +144,8 @@ function get_ranking_area (newCookie){
     ep.emit('list',list)
     ep.emit('newCookie',newCookie)
     ep.emit('folderPath',folderPath)
-  })  
-} 
+  })
+}
 
 function fetchUrl(list,newCookie,folderPath){
   request
@@ -164,7 +208,7 @@ function download (img,time,i,newCookie,folderPath,callback){
   }
 }
 
-getK_C()//运行
+// getK_C()//运行
 
 ep.all('list','newCookie','folderPath',function(list,newCookie,folderPath){
   list.forEach(function(list){
@@ -185,7 +229,7 @@ ep.all('list','newCookie','folderPath',function(list,newCookie,folderPath){
 ep.on('error',function(error){
   fs.unlinkSync(error)
   console.log(error,"超时！")
-})
+})*/
 
 app.listen(3000, function () {
   console.log('app is listening at port 3000');
