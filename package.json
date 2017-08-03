@@ -2,8 +2,9 @@
   "name": "getpixiv",
   "version": "1.0.0",
   "description": "",
-  "main": "app.js",
+  "main": "main.js",
   "scripts": {
+    "start": "electron .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -12,6 +13,9 @@
     "async": "^2.1.2",
     "axios": "^0.16.2",
     "cheerio": "^0.22.0",
-    "express": "^4.15.3"
+    "electron-reload": "^1.2.1",
+    "express": "^4.15.3",
+    "request": "^2.81.0",
+    "request-promise-native": "^1.0.4"
   }
 }

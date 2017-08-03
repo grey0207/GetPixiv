@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<link rel="stylesheet" href="semantic.min.css">
+</head>
+<body>
+	<h1>getpixiv</h1>
+	<form class="ui form segment">
+	  <div class="field">
+	    <label>Username</label>
+	    <input name="username" type="text" placeholder="Username" value="">
+	  </div>
+	  <div class="field">
+	    <label>Password</label>
+	    <input name="password" type="password" value="">
+	  </div>
+	  <div class="inline field">
+	    <div class="ui toggle checkbox">
+	      <input name="public" type="checkbox">
+	      <label>remember me!</label>
+	    </div>
+	  </div>
+	  <div class="ui primary submit button">Submit</div>
+	  <div class="ui error message"></div>
+	</form>
+	<script>
+	// 重命名 Electron 提供的 require
+	window.nodeRequire = require;
+	delete window.require;
+	delete window.exports;
+	delete window.module;
+	</script>
+	<script src="jquery.min.js"></script>
+	<script src="semantic.min.js"></script>
+	<script>
+		$('.ui.form')
+		  .form({
+		    fields: {
+		      username : 'empty',
+		      password : ['minLength[6]', 'empty'],
+		    }
+		  })
+		;
+	</script>
+</body>
+</html>
