@@ -3,7 +3,7 @@ const axios = require('axios')
 const express = require('express');
 const request = require('request-promise-native');
 const cheerio = require("cheerio");
-// const async = require("async");
+const async = require("async");
 const fs = require("fs");
 const qs = require('qs')
 
@@ -43,41 +43,82 @@ class Request {
       }
     }
   }
-  req(){
-    request(this.options)
-      .then($ => {
-        const title = $('.column-title .self').text()
-        const _about = $('._unit ._about').text()
-        const list = new Map()
-        $('.ranking-item a.work._work').each((i,el) => list.set(i,$(el).attr('href')))
-        const folderPath = `${__dirname}/${title}${_about}`
-        for(let [key, value] of list){
-          this.options.uri = `https://www.pixiv.net${value}`
-          request(this.options).then($ => {
-            const img_link = $('._illust_modal .original-image').data('src')
-            const manga_page_link = $('.works_display .read-more').attr('href')
-            const zip_re = /https[0-9a-zA-Z\_\\\/\:\.\-]*1920x1080\.zip/g;
-            const animation_link = $('#wrapper script').text().match(zip_re)
-            if(manga_page_link !== undefined){
-              this.options.uri = `https://www.pixiv.net/${manga_page_link}`
-              return request(this.options).then($ => {
-                $('.item-container img').each((i,el) => console.log(`${key}_${i}`,$(el).data('src')))
-              })
-            }else if(img_link !== undefined){
-              return console.log(key,img_link);
-            }
-            console.log(key,animation_link[0]);
-          })
+  async req(){
+    let $ = await request(this.options)
+    const title = $('.column-title .self').text()
+    const _about = $('._unit ._about').text()
+    const list = []
+    $('.ranking-item a.work._work').each((i,el) => list.push([i,$(el).attr('href')]))
+    const folderPath = `${__dirname}/${title}${_about}`
+    const download_link = []
+    const options = this.options
+    function get_img(key, value,callback){
+      options.uri = `https://www.pixiv.net${value}`
+      request(options).then($ => {
+        const img_link = $('._illust_modal .original-image').data('src')
+        const manga_page_link = $('.works_display .read-more').attr('href')
+        const zip_re = /https[0-9a-zA-Z\_\\\/\:\.\-]*1920x1080\.zip/g
+        const animation_link = $('#wrapper script').text().match(zip_re)
+        if(manga_page_link !== undefined){
+          options.uri = `https://www.pixiv.net/${manga_page_link}`
+          request(options).then($ => 
+            $('.item-container img').each((i,el) => {
+              download_link.push([`${key}_${i}`,$(el).data('src')]) 
+            })
+          )
+          
+        }else if(img_link !== undefined){
+          download_link.push([key,img_link])
+        }else{
+          download_link.push([key,animation_link[0].replace(/\\/g,'')])
+        }
+        callback()
+      })
+    }
+    /*async.each(list,function(item,callback){  
+        get_img(item[0], item[1],callback)
+    },function(err){  
+        console.log(download_link);  
+    }) */
+    let p1 = (key,value) => {
+      options.uri = `https://www.pixiv.net${value}`
+      request(options).then($ => {
+        const img_link = $('._illust_modal .original-image').data('src')
+        const manga_page_link = $('.works_display .read-more').attr('href')
+        const zip_re = /https[0-9a-zA-Z\_\\\/\:\.\-]*1920x1080\.zip/g
+        const animation_link = $('#wrapper script').text().match(zip_re)
+        if(manga_page_link !== undefined){
+          options.uri = `https://www.pixiv.net/${manga_page_link}`
+          request(options).then($ => 
+            $('.item-container img').each((i,el) => {
+              download_link.push([`${key}_${i}`,$(el).data('src')]) 
+            })
+          )
+          
+        }else if(img_link !== undefined){
+          download_link.push([key,img_link])
+        }else{
+          download_link.push([key,animation_link[0].replace(/\\/g,'')])
         }
       })
-      .catch(function (err) {
-        console.log(err)
-      })}
+    }
+
+
+    for(let [key,value] of list){
+      p1(key,value)
+    }
+    return download_link
+  }
+
+    /*dl(){
+      this.options.uri = 'https://i.pximg.net/img-zip-ugoira/img/2017/08/02/00/31/15/64174919_ugoira1920x1080.zip'
+      request(this.options).pipe(fs.createWriteStream('test.zip'))
+    }*/
 
 }
 
-const member_illust_url = new Request(rankUrl[5])
-member_illust_url.req()
+const member_illust_url = new Request(rankUrl[0])
+member_illust_url.req().then(x => console.log(x))
 
 
 app.listen(3000, function () {

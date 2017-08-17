@@ -1,7 +1,9 @@
-const {app, BrowserWindow} = require('electron')
+const {app, BrowserWindow, ipcMain} = require('electron')
 const path = require('path')
 const url = require('url')
-require('electron-reload')(__dirname);
+require('electron-reload')(__dirname,{
+  electron: require('electron-prebuilt')
+});
 // 保持一个对于 window 对象的全局引用，如果你不这样做，
 // 当 JavaScript 对象被垃圾回收， window 会被自动地关闭
 let win
@@ -27,6 +29,11 @@ function createWindow () {
     // 与此同时，你应该删除相应的元素。
     win = null
   })
+
+  ipcMain.on('msg', (event, arg) => {
+    event.sender.send('msg-reply', 'pong')
+  })
+
 }
 
 // Electron 会在初始化后并准备

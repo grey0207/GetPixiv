@@ -10,9 +10,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "async": "^2.1.2",
+    "async": "^2.5.0",
     "axios": "^0.16.2",
     "cheerio": "^0.22.0",
+    "electron-prebuilt": "^1.4.13",
     "electron-reload": "^1.2.1",
     "express": "^4.15.3",
     "request": "^2.81.0",

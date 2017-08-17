@@ -24,6 +24,7 @@
 	  </div>
 	  <div class="ui primary submit button">Submit</div>
 	  <div class="ui error message"></div>
+	  <div class="msg"></div>
 	</form>
 	<script>
 	// 重命名 Electron 提供的 require
@@ -35,6 +36,7 @@
 	<script src="jquery.min.js"></script>
 	<script src="semantic.min.js"></script>
 	<script>
+		const {ipcRenderer} = nodeRequire('electron')
 		$('.ui.form')
 		  .form({
 		    fields: {
@@ -42,7 +44,14 @@
 		      password : ['minLength[6]', 'empty'],
 		    }
 		  })
-		;
+		  $('.submit').on('click',() => {
+		  	console.log('ping');
+		  	ipcRenderer.send('msg', 'ping')
+		  })
+		  ipcRenderer.on('msg-reply', (event, arg) => {
+		  	$('.msg').text(arg)
+		    console.log(arg) // prints "pong"
+		  })
 	</script>
 </body>
 </html>
